@@ -563,32 +563,31 @@ class SDSWebAssistant:
             health, fire, reactivity, special = result
             
 
-            # Generate SVG content - FIXED TRIPLE QUOTES
-           def generate_nfpa_sticker_svg(self, product_name: str) -> Dict:
-    """Generate NFPA diamond sticker as SVG"""
-    try:
-        conn = sqlite3.connect(self.db_path)
-        cursor = conn.cursor()
-        
-        cursor.execute('''
-            SELECT ch.nfpa_health, ch.nfpa_fire, ch.nfpa_reactivity, ch.nfpa_special
-            FROM chemical_hazards ch
-            JOIN sds_chunks sc ON ch.sds_chunk_id = sc.id
-            WHERE LOWER(sc.product_name) LIKE ?
-            ORDER BY ch.created_at DESC
-            LIMIT 1
-        ''', (f"%{product_name.lower()}%",))
-        
-        result = cursor.fetchone()
-        conn.close()
-        
-        if not result:
-            return {"success": False, "message": f"No hazard data found for {product_name}"}
-        
-        health, fire, reactivity, special = result
-        
-        # Generate SVG content - FIXED
-        svg_content = f'''<?xml version="1.0" encoding="UTF-8"?>
+def generate_nfpa_sticker_svg(self, product_name: str) -> Dict:
+        """Generate NFPA diamond sticker as SVG"""
+        try:
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.cursor()
+            
+            cursor.execute('''
+                SELECT ch.nfpa_health, ch.nfpa_fire, ch.nfpa_reactivity, ch.nfpa_special
+                FROM chemical_hazards ch
+                JOIN sds_chunks sc ON ch.sds_chunk_id = sc.id
+                WHERE LOWER(sc.product_name) LIKE ?
+                ORDER BY ch.created_at DESC
+                LIMIT 1
+            ''', (f"%{product_name.lower()}%",))
+            
+            result = cursor.fetchone()
+            conn.close()
+            
+            if not result:
+                return {"success": False, "message": f"No hazard data found for {product_name}"}
+            
+            health, fire, reactivity, special = result
+            
+            # Generate SVG content - FIXED
+            svg_content = f'''<?xml version="1.0" encoding="UTF-8"?>
 <svg width="300" height="300" xmlns="http://www.w3.org/2000/svg">
     <style>
         .diamond {{ stroke: black; stroke-width: 3; }}
@@ -627,25 +626,25 @@ class SDSWebAssistant:
     <!-- Product Name -->
     <text x="150" y="295" class="product" fill="black">{product_name[:40]}</text>
 </svg>'''
-        
-        # Save SVG file
-        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-        sticker_filename = f"nfpa_{secure_filename(product_name)}_{timestamp}.svg"
-        sticker_path = Path('static/stickers') / sticker_filename
-        
-        with open(sticker_path, 'w') as f:
-            f.write(svg_content)
-        
-        return {
-            "success": True,
-            "filename": sticker_filename,
-            "ratings": {
-                "health": health,
-                "fire": fire,
-                "reactivity": reactivity,
-                "special": special or "None"
+            
+            # Save SVG file
+            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+            sticker_filename = f"nfpa_{secure_filename(product_name)}_{timestamp}.svg"
+            sticker_path = Path('static/stickers') / sticker_filename
+            
+            with open(sticker_path, 'w') as f:
+                f.write(svg_content)
+            
+            return {
+                "success": True,
+                "filename": sticker_filename,
+                "ratings": {
+                    "health": health,
+                    "fire": fire,
+                    "reactivity": reactivity,
+                    "special": special or "None"
+                }
             }
-        }
-        
-    except Exception as e:
-        return {"success": False, "message": f"Error generating NFPA sticker: {str(e)}"}
+            
+        except Exception as e:
+            return {"success": False, "message": f"Error generating NFPA sticker: {str(e)}"}
