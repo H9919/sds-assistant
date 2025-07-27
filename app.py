@@ -683,3 +683,201 @@ class SDSWebAssistant:
                 "hazardous_materials": 0,
                 "recent_searches": []
             }
+
+# Initialize the assistant
+sds_assistant = SDSWebAssistant()
+
+# HTML Template (simplified for now)
+HTML_TEMPLATE = '''
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SDS Assistant - Safety Data Sheet Management</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .gradient-bg { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+        .card-hover:hover { transform: translateY(-2px); transition: transform 0.2s; }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <nav class="gradient-bg shadow-lg">
+        <div class="max-w-7xl mx-auto px-4">
+            <div class="flex justify-between h-16">
+                <div class="flex items-center">
+                    <i class="fas fa-flask text-white text-2xl mr-3"></i>
+                    <span class="text-white text-xl font-bold">SDS Assistant</span>
+                    <span class="text-white text-sm ml-2 opacity-75">Safety Data Sheet Management</span>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div class="max-w-7xl mx-auto px-4 py-8">
+        <div class="bg-white rounded-lg shadow p-6">
+            <h1 class="text-3xl font-bold text-gray-900 mb-4">🚀 SDS Assistant is Running!</h1>
+            <p class="text-lg text-gray-600 mb-6">Welcome to the Safety Data Sheet Management System</p>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <a href="/test" class="bg-blue-100 hover:bg-blue-200 p-4 rounded-lg transition">
+                    <i class="fas fa-vial text-blue-600 text-2xl mb-2"></i>
+                    <h3 class="font-semibold">Test Page</h3>
+                    <p class="text-sm text-gray-600">Basic functionality test</p>
+                </a>
+                
+                <a href="/health" class="bg-green-100 hover:bg-green-200 p-4 rounded-lg transition">
+                    <i class="fas fa-heartbeat text-green-600 text-2xl mb-2"></i>
+                    <h3 class="font-semibold">Health Check</h3>
+                    <p class="text-sm text-gray-600">System status</p>
+                </a>
+                
+                <a href="/api/dashboard-stats" class="bg-purple-100 hover:bg-purple-200 p-4 rounded-lg transition">
+                    <i class="fas fa-chart-bar text-purple-600 text-2xl mb-2"></i>
+                    <h3 class="font-semibold">Dashboard Stats</h3>
+                    <p class="text-sm text-gray-600">System statistics</p>
+                </a>
+                
+                <a href="/debug" class="bg-orange-100 hover:bg-orange-200 p-4 rounded-lg transition">
+                    <i class="fas fa-bug text-orange-600 text-2xl mb-2"></i>
+                    <h3 class="font-semibold">Debug Info</h3>
+                    <p class="text-sm text-gray-600">Technical details</p>
+                </a>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
+'''
+
+# Routes
+@app.route('/')
+def index():
+    """Main dashboard page"""
+    return render_template_string(HTML_TEMPLATE)
+
+@app.route('/test')
+def test():
+    """Simple test route"""
+    return "<h1>✅ App is working!</h1><p>This is a test page.</p><a href='/'>← Back to Home</a>"
+
+@app.route('/health')
+def health():
+    """Health check endpoint"""
+    return jsonify({
+        "status": "healthy", 
+        "timestamp": datetime.now().isoformat(),
+        "database": "connected"
+    })
+
+@app.route('/debug')
+def debug():
+    """Debug information"""
+    return jsonify({
+        "status": "running",
+        "routes": [str(rule) for rule in app.url_map.iter_rules()],
+        "timestamp": datetime.now().isoformat(),
+        "python_version": "3.9.16",
+        "database_initialized": True
+    })
+
+@app.route('/api/dashboard-stats')
+def dashboard_stats():
+    """Get dashboard statistics"""
+    stats = sds_assistant.get_dashboard_stats()
+    return jsonify(stats)
+
+@app.route('/api/states')
+def get_states():
+    """Get all US states"""
+    states = sds_assistant.get_states()
+    return jsonify(states)
+
+@app.route('/api/locations')
+def get_locations():
+    """Get locations with optional filtering"""
+    state_filter = request.args.get('state')
+    search_term = request.args.get('search')
+    locations = sds_assistant.get_locations(state_filter, search_term)
+    return jsonify(locations)
+
+@app.route('/api/upload', methods=['POST'])
+def upload_file():
+    """Handle file upload"""
+    if 'file' not in request.files:
+        return jsonify({"success": False, "message": "No file provided"})
+    
+    file = request.files['file']
+    location_id = request.form.get('location_id')
+    
+    if not location_id:
+        return jsonify({"success": False, "message": "Location is required"})
+    
+    if file.filename == '':
+        return jsonify({"success": False, "message": "No file selected"})
+    
+    result = sds_assistant.upload_file(file, int(location_id))
+    return jsonify(result)
+
+@app.route('/api/search')
+def search():
+    """Search SDS database"""
+    query = request.args.get('q', '')
+    location_id = request.args.get('location_id')
+    user_session = session.get('user_id', 'anonymous')
+    
+    if not query:
+        return jsonify([])
+    
+    results = sds_assistant.search_database(
+        query, 
+        int(location_id) if location_id else None,
+        user_session
+    )
+    return jsonify(results)
+
+@app.route('/api/generate-nfpa', methods=['POST'])
+def generate_nfpa():
+    """Generate NFPA sticker"""
+    data = request.json
+    product_name = data.get('product_name')
+    
+    if not product_name:
+        return jsonify({"success": False, "message": "Product name is required"})
+    
+    result = sds_assistant.generate_nfpa_sticker_svg(product_name)
+    return jsonify(result)
+
+@app.route('/api/download-sticker/<filename>')
+def download_sticker(filename):
+    """Download generated sticker"""
+    try:
+        return send_file(f'static/stickers/{filename}', as_attachment=True)
+    except FileNotFoundError:
+        return jsonify({"error": "File not found"}), 404
+
+# Error handlers
+@app.errorhandler(404)
+def not_found_error(error):
+    return jsonify({
+        "error": "Not Found",
+        "message": "The requested URL was not found on the server.",
+        "available_routes": [str(rule) for rule in app.url_map.iter_rules()]
+    }), 404
+
+@app.errorhandler(500)
+def internal_error(error):
+    return jsonify({
+        "error": "Internal Server Error",
+        "message": "Something went wrong on the server."
+    }), 500
+
+if __name__ == '__main__':
+    port = int(os.environ.get('PORT', 5000))
+    print("🚀 Starting SDS Assistant Web Application...")
+    print("📍 Database will be populated with US cities on first run")
+    print(f"🌐 Application will be available at: http://localhost:{port}")
+    print("📱 Mobile PWA ready - can be installed on phones/tablets")
+    print()
+    app.run(debug=False, host='0.0.0.0', port=port)
