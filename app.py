@@ -562,30 +562,6 @@ class SDSWebAssistant:
             
             health, fire, reactivity, special = result
             
-
-def generate_nfpa_sticker_svg(self, product_name: str) -> Dict:
-        """Generate NFPA diamond sticker as SVG"""
-        try:
-            conn = sqlite3.connect(self.db_path)
-            cursor = conn.cursor()
-            
-            cursor.execute('''
-                SELECT ch.nfpa_health, ch.nfpa_fire, ch.nfpa_reactivity, ch.nfpa_special
-                FROM chemical_hazards ch
-                JOIN sds_chunks sc ON ch.sds_chunk_id = sc.id
-                WHERE LOWER(sc.product_name) LIKE ?
-                ORDER BY ch.created_at DESC
-                LIMIT 1
-            ''', (f"%{product_name.lower()}%",))
-            
-            result = cursor.fetchone()
-            conn.close()
-            
-            if not result:
-                return {"success": False, "message": f"No hazard data found for {product_name}"}
-            
-            health, fire, reactivity, special = result
-            
             # Generate SVG content - FIXED
             svg_content = f'''<?xml version="1.0" encoding="UTF-8"?>
 <svg width="300" height="300" xmlns="http://www.w3.org/2000/svg">
