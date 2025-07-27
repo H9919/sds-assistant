@@ -648,3 +648,62 @@ def generate_nfpa_sticker_svg(self, product_name: str) -> Dict:
             
         except Exception as e:
             return {"success": False, "message": f"Error generating NFPA sticker: {str(e)}"}
+
+    def get_dashboard_stats(self) -> Dict:
+        """Get dashboard statistics"""
+        try:
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.cursor()
+            
+            # Total documents
+            cursor.execute('SELECT COUNT(*) FROM sds_chunks')
+            total_documents = cursor.fetchone()[0]
+            
+            # Total locations with documents
+            cursor.execute('SELECT COUNT(DISTINCT location_id) FROM sds_chunks WHERE location_id IS NOT NULL')
+            active_locations = cursor.fetchone()[0]
+            
+            # Recent uploads (last 7 days)
+            cursor.execute('''
+                SELECT COUNT(*) FROM sds_chunks 
+                WHERE created_at >= datetime('now', '-7 days')
+            ''')
+            recent_uploads = cursor.fetchone()[0]
+            
+            # Hazardous materials (NFPA health > 2 or fire > 2)
+            cursor.execute('''
+                SELECT COUNT(*) FROM chemical_hazards 
+                WHERE nfpa_health > 2 OR nfpa_fire > 2 OR nfpa_reactivity > 2
+            ''')
+            hazardous_count = cursor.fetchone()[0]
+            
+            # Recent searches
+            cursor.execute('''
+                SELECT query, COUNT(*) as count
+                FROM search_history 
+                WHERE created_at >= datetime('now', '-7 days')
+                GROUP BY query
+                ORDER BY count DESC
+                LIMIT 5
+            ''')
+            recent_searches = cursor.fetchall()
+            
+            conn.close()
+            
+            return {
+                "total_documents": total_documents,
+                "active_locations": active_locations,
+                "recent_uploads": recent_uploads,
+                "hazardous_materials": hazardous_count,
+                "recent_searches": [{"query": row[0], "count": row[1]} for row in recent_searches]
+            }
+            
+        except Exception as e:
+            print(f"Error getting dashboard stats: {str(e)}")
+            return {
+                "total_documents": 0, 
+                "active_locations": 0, 
+                "recent_uploads": 0, 
+                "hazardous_materials": 0,
+                "recent_searches": []
+            }
